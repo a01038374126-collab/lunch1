@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>오늘 뭐 먹지? - 점심 메뉴 추천기</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: #FAF6F0; /* 따뜻한 크림색 배경 */
+            color: #333333;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 100vh;
+            padding: 24px 16px;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        header {
+            margin-top: 10px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #5A4A42;
+            letter-spacing: -0.5px;
+        }
+
+        .sub-title {
+            font-size: 0.95rem;
+            color: #8C7A6B;
+            margin-top: 6px;
+        }
+
+        /* 메인 컨테이너 */
+        .card-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px 0;
+        }
+
+        /* 결과 카드 */
+        .result-card {
+            background: #FFFFFF;
+            width: 100%;
+            padding: 40px 20px;
+            border-radius: 28px;
+            box-shadow: 0 12px 32px rgba(180, 160, 140, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+
+        .emoji-display {
+            font-size: 6rem;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));
+            user-select: none;
+        }
+
+        .menu-name {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #2D231D;
+            word-break: keep-all;
+            min-height: 2.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 바운스 애니메이션 */
+        .bounce {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 컨트롤 및 버튼 그룹 */
+        .controls {
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px 20px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background-color: #FF7E5F;
+            color: #FFFFFF;
+        }
+
+        .btn-primary:disabled {
+            background-color: #E0D5C9;
+            color: #A09589;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: #EFE8DF;
+            color: #5A4A42;
+        }
+
+        /* 안내 문구 */
+        .status-badge {
+            font-size: 0.85rem;
+            color: #7A6A5D;
+            background: #EFE8DF;
+            padding: 6px 14px;
+            border-radius: 20px;
+            margin-top: 14px;
+            display: inline-block;
+        }
+
+        /* 모달 오버레이 (iOS 권한 요청 안내용) */
+        .permission-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .permission-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            max-width: 320px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .modal-content h2 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #2D231D;
+        }
+
+        .modal-content p {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🍱 오늘 뭐 먹지?</h1>
+        <p class="sub-title">고민되는 점심 메뉴, 결정해 드릴게요!</p>
+    </header>
+
+    <div class="card-container">
+        <div class="result-card" id="resultCard">
+            <div class="emoji-display" id="emojiDisplay">🎲</div>
+            <div class="menu-name" id="menuName">준비되셨나요?</div>
+        </div>
+        <div class="status-badge" id="statusBadge">'시작하기' 버튼을 눌러주세요!</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" id="startBtn">🚀 시작하기 (센서 허용)</button>
+        <button class="btn btn-secondary" id="pickBtn">🎰 버튼으로 뽑기</button>
+    </div>
+
+    <!-- 모션 센서 권한 모달 (iOS 대응) -->
+    <div class="permission-modal" id="permModal">
+        <div class="modal-content">
+            <h2>흔들기 센서 승인</h2>
+            <p>폰을 흔들어서 메뉴를 뽑으려면<br>동작 및 방향 센서 접근을 허용해 주세요.</p>
+            <button class="btn btn-primary" id="requestPermBtn">허용하기</button>
+        </div>
+    </div>
+
+    <script>
+        // 30가지 한국 점심 메뉴 및 어울리는 이모지 리스트
+        const menuList = [
+            { name: "김치찌개", emoji: "🍲" },
+            { name: "제육볶음", emoji: "🥩" },
+            { name: "돈까스", emoji: "🍱" },
+            { name: "짜장면", emoji: "🍜" },
+            { name: "비빔밥", emoji: "🍚" },
+            { name: "칼국수", emoji: "🍜" },
+            { name: "초밥", emoji: "🍣" },
+            { name: "햄버거", emoji: "🍔" },
+            { name: "부대찌개", emoji: "🥘" },
+            { name: "떡볶이", emoji: "🍢" },
+            { name: "냉면", emoji: "🧊" },
+            { name: "순대국밥", emoji: "🍲" },
+            { name: "마라탕", emoji: "🥘" },
+            { name: "파스타", emoji: "🍝" },
+            { name: "샌드위치", emoji: "🥪" },
+            { name: "닭갈비", emoji: "🥘" },
+            { name: "쌀국수", emoji: "🍜" },
+            { name: "카레", emoji: "🍛" },
+            { name: "육개장", emoji: "🍲" },
+            { name: "쌈밥 백반", emoji: "🍚" },
+            { name: "솥밥", emoji: "🍚" },
+            { name: "텐동", emoji: "🍤" },
+            { name: "샐러드", emoji: "🥗" },
+            { name: "샤브샤브", emoji: "🍲" },
+            { name: "김밥", emoji: "🍙" },
+            { name: "보쌈정식", emoji: "🍖" },
+            { name: "우동", emoji: "🍜" },
+            { name: "오므라이스", emoji: "🍳" },
+            { name: "짜글이", emoji: "🥘" },
+            { name: "수제비", emoji: "🍲" }
+        ];
+
+        // 요소 참조
+        const emojiDisplay = document.getElementById("emojiDisplay");
+        const menuName = document.getElementById("menuName");
+        const resultCard = document.getElementById("resultCard");
+        const statusBadge = document.getElementById("statusBadge");
+        const startBtn = document.getElementById("startBtn");
+        const pickBtn = document.getElementById("pickBtn");
+        const permModal = document.getElementById("permModal");
+        const requestPermBtn = document.getElementById("requestPermBtn");
+
+        // 상태 변수
+        let isSpinning = false;
+        let lastMenuIndex = -1;
+        let sensorEnabled = false;
+
+        // 흔들기 감지 변수
+        let lastX = null, lastY = null, lastZ = null;
+        let lastTime = 0;
+        const SHAKE_THRESHOLD = 15; // 흔들기 감도Threshold
+
+        // 진동 함수 (안전 처리)
+        function safeVibrate(pattern) {
+            try {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(pattern);
+                }
+            } catch (e) {
+                // 진동 미지원 기기(iOS 등)는 예외 처리 없이 무시
+            }
+        }
+
+        // 연속 중복 방지 랜덤 추출
+        function getRandomIndex() {
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * menuList.length);
+            } while (randomIndex === lastMenuIndex && menuList.length > 1);
+            lastMenuIndex = randomIndex;
+            return randomIndex;
+        }
+
+        // 메뉴 뽑기 슬롯머신 애니메이션 (점점 느려지는 효과)
+        function startPick() {
+            if (isSpinning) return;
+            isSpinning = true;
+
+            // 흔들림 및 시작 시 가벼운 진동
+            safeVibrate(30);
+
+            let delay = 50; // 초기 속도 (밀리초)
+            let totalSteps = 25; // 총 교체 횟수
+            let currentStep = 0;
+
+            function step() {
+                const idx = getRandomIndex();
+                const currentItem = menuList[idx];
+
+                // 화면 업데이트
+                emojiDisplay.textContent = currentItem.emoji;
+                menuName.textContent = currentItem.name;
+
+                currentStep++;
+
+                if (currentStep < totalSteps) {
+                    // 시간이 지날수록 감속
+                    delay += Math.floor(currentStep * 1.5);
+                    setTimeout(step, delay);
+                } else {
+                    // 최종 메뉴 확정
+                    finalizePick(currentItem);
+                }
+            }
+
+            step();
+        }
+
+        // 최종 선택 완료 처리
+        function finalizePick(finalItem) {
+            isSpinning = false;
+
+            // 결과 바운스 애니메이션 효과
+            resultCard.classList.remove("bounce");
+            void resultCard.offsetWidth; // reflow 강제
+            resultCard.classList.add("bounce");
+
+            // 결과 발표 강한 진동 (200ms)
+            safeVibrate([100, 50, 200]);
+
+            if (sensorEnabled) {
+                statusBadge.textContent = "📱 폰을 다시 흔들거나 버튼을 누르세요!";
+            } else {
+                statusBadge.textContent = "🎉 오늘의 추천 점심 메뉴입니다!";
+            }
+        }
+
+        // 흔들기 감지 이벤트 핸들러
+        function handleMotion(event) {
+            if (isSpinning) return;
+
+            const current = event.accelerationIncludingGravity;
+            if (!current) return;
+
+            const currentTime = Date.now();
+            if ((currentTime - lastTime) > 100) {
+                const diffTime = currentTime - lastTime;
+                lastTime = currentTime;
+
+                if (lastX !== null && lastY !== null && lastZ !== null) {
+                    const deltaX = Math.abs(current.x - lastX);
+                    const deltaY = Math.abs(current.y - lastY);
+                    const deltaZ = Math.abs(current.z - lastZ);
+
+                    // 삼차원 이동량 계산
+                    const speed = (deltaX + deltaY + deltaZ) / diffTime * 100;
+
+                    if (speed > SHAKE_THRESHOLD) {
+                        startPick();
+                    }
+                }
+
+                lastX = current.x;
+                lastY = current.y;
+                lastZ = current.z;
+            }
+        }
+
+        // 센서 활성화 처리 함수
+        function enableSensor() {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                // iOS 13+ 사용자 권한 요청 필요
+                DeviceMotionEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            window.addEventListener('devicemotion', handleMotion, false);
+                            sensorEnabled = true;
+                            statusBadge.textContent = "📱 폰을 흔들면 메뉴가 뽑혀요!";
+                            startBtn.disabled = true;
+                            startBtn.textContent = "✅ 흔들기 센서 활성화됨";
+                        } else {
+                            alert("센서 접근 권한이 거부되었습니다. '버튼으로 뽑기'를 이용해 주세요.");
+                        }
+                    })
+                    .catch(console.error);
+            } else if (window.DeviceMotionEvent) {
+                // 일반 안드로이드 및 구형 브라우저 (권한 요청 미필요)
+                window.addEventListener('devicemotion', handleMotion, false);
+                sensorEnabled = true;
+                statusBadge.textContent = "📱 폰을 흔들면 메뉴가 뽑혀요!";
+                startBtn.disabled = true;
+                startBtn.textContent = "✅ 흔들기 센서 활성화됨";
+            } else {
+                statusBadge.textContent = "⚠️ 이 기기는 흔들기 센서를 지원하지 않습니다.";
+            }
+        }
+
+        // 시작하기 버튼 클릭 핸들러 (권한 체크 및 모달/직접 실행)
+        startBtn.addEventListener("click", () => {
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                permModal.classList.add("active");
+            } else {
+                enableSensor();
+            }
+        });
+
+        // 모달 내 허용하기 클릭
+        requestPermBtn.addEventListener("click", () => {
+            permModal.classList.remove("active");
+            enableSensor();
+        });
+
+        // 버튼으로 직접 뽑기 클릭
+        pickBtn.addEventListener("click", () => {
+            startPick();
+        });
+    </script>
+</body>
+</html>
